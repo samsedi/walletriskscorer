@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: walletriskscorer
+server:
+  port: 8081
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+
+moralis:
+  api:
+    key: ${MORALIS_API_KEY}
