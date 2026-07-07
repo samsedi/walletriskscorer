@@ -3,6 +3,8 @@ package com.walletriskscorer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.walletriskscorer.dto.EnsProfileDto;
+import com.walletriskscorer.entity.ApiCache;
+import com.walletriskscorer.repository.ApiCacheRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 public class EnsService {
@@ -24,14 +28,16 @@ public class EnsService {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ApiCacheRepository apiCacheRepository;
 
-    public EnsService() {
+    public EnsService(ApiCacheRepository apiCacheRepository) {
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(8))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         this.objectMapper = new ObjectMapper();
+        this.apiCacheRepository = apiCacheRepository;
     }
 
     /**
@@ -43,8 +49,20 @@ public class EnsService {
      * e.g. https://ensdata.net/vitalik.eth
      *      https://ensdata.net/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
      */
-    public EnsProfileDto resolveAddress(String input) {
+    public EnsProfileDto resolveAddress(String input, boolean refresh) {
         String cleanInput = input.trim();
+        String cacheKey = "ensProfile:" + cleanInput.toLowerCase();
+
+        ApiCache cache = refresh ? null : apiCacheRepository.findById(cacheKey).orElse(null);
+        if (cache != null && cache.getUpdatedAt().isAfter(Instant.now().minus(24, ChronoUnit.HOURS))) {
+            try {
+                return objectMapper.readValue(cache.getJsonResponse(), EnsProfileDto.class);
+            } catch (Exception e) {
+                log.warn("Failed to parse cache for {}", cacheKey, e);
+            }
+        }
+
+        EnsProfileDto resultDto;
 
         try {
             URI uri = URI.create(ENSDATA_BASE + cleanInput);
@@ -65,20 +83,30 @@ public class EnsService {
             if (response.statusCode() == 404 || response.body() == null
                     || response.body().isBlank()) {
                 log.info("No ENS found for: {}", cleanInput);
-                return buildFallback(cleanInput);
-            }
-
-            if (response.statusCode() != 200) {
+                resultDto = buildFallback(cleanInput);
+            } else if (response.statusCode() != 200) {
                 log.warn("ensdata.net returned {} for {}", response.statusCode(), cleanInput);
-                return buildFallback(cleanInput);
+                resultDto = buildFallback(cleanInput);
+            } else {
+                resultDto = parseEnsDataResponse(cleanInput, response.body());
             }
-
-            return parseEnsDataResponse(cleanInput, response.body());
 
         } catch (Exception e) {
             log.error("ENS resolution failed for {}: {}", cleanInput, e.getMessage());
-            return buildFallback(cleanInput);
+            resultDto = buildFallback(cleanInput);
         }
+
+        try {
+            apiCacheRepository.save(ApiCache.builder()
+                    .cacheKey(cacheKey)
+                    .jsonResponse(objectMapper.writeValueAsString(resultDto))
+                    .updatedAt(Instant.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to save cache for {}", cacheKey, e);
+        }
+
+        return resultDto;
     }
 
     // ---------- private helpers ----------

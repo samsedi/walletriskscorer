@@ -21,8 +21,11 @@ public class EnsController {
      * Also accepts ENS names: ?address=vitalik.eth
      */
     @GetMapping("/resolve")
-    public ResponseEntity<EnsProfileDto> resolve(@RequestParam String address) {
-        EnsProfileDto profile = ensService.resolveAddress(address);
+    public ResponseEntity<EnsProfileDto> resolve(
+            @RequestParam String address,
+            @RequestParam(defaultValue = "false") boolean refresh
+    ) {
+        EnsProfileDto profile = ensService.resolveAddress(address, refresh);
         return ResponseEntity.ok(profile);
     }
 }

@@ -1,12 +1,16 @@
 package com.walletriskscorer.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WalletDetailsDto {
 
     private Stats stats;
@@ -15,6 +19,8 @@ public class WalletDetailsDto {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Stats {
         private String walletAge;
         private String totalTxs;
@@ -28,6 +34,8 @@ public class WalletDetailsDto {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Interaction {
         private String name;
         private String address;
@@ -41,6 +49,8 @@ public class WalletDetailsDto {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SignalFlag {
         private String label;
         private String status;

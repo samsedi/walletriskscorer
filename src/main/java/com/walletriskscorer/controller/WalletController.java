@@ -29,36 +29,38 @@ public class WalletController {
             @RequestParam String address,
             @RequestParam(defaultValue = "W") String timeframe,
             @RequestParam(defaultValue = "2026") int year,
-            @RequestParam(defaultValue = "eth") String chain
+            @RequestParam(defaultValue = "eth") String chain,
+            @RequestParam(defaultValue = "false") boolean refresh
     ) {
         if (address == null || address.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
         
-        String hexAddress = ensService.resolveAddress(address).getAddress();
+        String hexAddress = ensService.resolveAddress(address, refresh).getAddress();
         if (hexAddress == null || !hexAddress.startsWith("0x")) {
             return ResponseEntity.badRequest().build();
         }
         
-        List<ActivityChartDto> activity = moralisService.getTransactionActivity(hexAddress, timeframe, year, chain);
+        List<ActivityChartDto> activity = moralisService.getTransactionActivity(hexAddress, timeframe, year, chain, refresh);
         return ResponseEntity.ok(activity);
     }
 
     @GetMapping("/details")
     public ResponseEntity<com.walletriskscorer.dto.WalletDetailsDto> getWalletDetails(
             @RequestParam String address,
-            @RequestParam(defaultValue = "eth") String chain
+            @RequestParam(defaultValue = "eth") String chain,
+            @RequestParam(defaultValue = "false") boolean refresh
     ) {
         if (address == null || address.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
         
-        String hexAddress = ensService.resolveAddress(address).getAddress();
+        String hexAddress = ensService.resolveAddress(address, refresh).getAddress();
         if (hexAddress == null || !hexAddress.startsWith("0x")) {
             return ResponseEntity.badRequest().build();
         }
         
-        com.walletriskscorer.dto.WalletDetailsDto details = moralisService.getWalletDetails(hexAddress, chain);
+        com.walletriskscorer.dto.WalletDetailsDto details = moralisService.getWalletDetails(hexAddress, chain, refresh);
         return ResponseEntity.ok(details);
     }
 }

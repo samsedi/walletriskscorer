@@ -3,6 +3,8 @@ package com.walletriskscorer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.walletriskscorer.dto.ActivityChartDto;
+import com.walletriskscorer.entity.ApiCache;
+import com.walletriskscorer.repository.ApiCacheRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,18 +36,31 @@ public class MoralisService {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ApiCacheRepository apiCacheRepository;
 
-    public MoralisService() {
+    public MoralisService(ApiCacheRepository apiCacheRepository) {
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(8))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         this.objectMapper = new ObjectMapper();
+        this.apiCacheRepository = apiCacheRepository;
     }
 
-    public List<ActivityChartDto> getTransactionActivity(String address, String timeframe, int year, String chain) {
+    public List<ActivityChartDto> getTransactionActivity(String address, String timeframe, int year, String chain, boolean refresh) {
         String cleanAddress = address.trim();
+        String cacheKey = "txActivity:" + cleanAddress + ":" + timeframe + ":" + year + ":" + chain;
+        
+        ApiCache cache = refresh ? null : apiCacheRepository.findById(cacheKey).orElse(null);
+        if (cache != null && cache.getUpdatedAt().isAfter(Instant.now().minus(24, ChronoUnit.HOURS))) {
+            try {
+                return objectMapper.readValue(cache.getJsonResponse(), new com.fasterxml.jackson.core.type.TypeReference<List<ActivityChartDto>>() {});
+            } catch (Exception e) {
+                log.warn("Failed to parse cache for {}", cacheKey, e);
+            }
+        }
+
         List<ActivityChartDto> result = new ArrayList<>();
         
         if (apiKey == null || apiKey.isBlank() || apiKey.equals("your-moralis-api-key")) {
@@ -134,6 +149,16 @@ public class MoralisService {
                         .build());
             }
 
+            try {
+                apiCacheRepository.save(ApiCache.builder()
+                        .cacheKey(cacheKey)
+                        .jsonResponse(objectMapper.writeValueAsString(result))
+                        .updatedAt(Instant.now())
+                        .build());
+            } catch (Exception e) {
+                log.warn("Failed to save cache for {}", cacheKey, e);
+            }
+
             return result;
 
         } catch (Exception e) {
@@ -178,8 +203,18 @@ public class MoralisService {
         };
     }
 
-    public com.walletriskscorer.dto.WalletDetailsDto getWalletDetails(String address, String chain) {
+    public com.walletriskscorer.dto.WalletDetailsDto getWalletDetails(String address, String chain, boolean refresh) {
         String cleanAddress = address.trim();
+        String cacheKey = "walletDetails:" + cleanAddress + ":" + chain;
+        
+        ApiCache cache = refresh ? null : apiCacheRepository.findById(cacheKey).orElse(null);
+        if (cache != null && cache.getUpdatedAt().isAfter(Instant.now().minus(24, ChronoUnit.HOURS))) {
+            try {
+                return objectMapper.readValue(cache.getJsonResponse(), com.walletriskscorer.dto.WalletDetailsDto.class);
+            } catch (Exception e) {
+                log.warn("Failed to parse cache for {}", cacheKey, e);
+            }
+        }
         
         if (apiKey == null || apiKey.isBlank() || apiKey.equals("your-moralis-api-key")) {
             return buildMockWalletDetails(cleanAddress, chain);
@@ -494,7 +529,7 @@ public class MoralisService {
             else if (riskScore < 70) riskLevel = "Medium Risk";
             else riskLevel = "High Risk";
 
-            return com.walletriskscorer.dto.WalletDetailsDto.builder()
+            com.walletriskscorer.dto.WalletDetailsDto dtoResult = com.walletriskscorer.dto.WalletDetailsDto.builder()
                     .stats(com.walletriskscorer.dto.WalletDetailsDto.Stats.builder()
                             .walletAge(walletAge)
                             .totalTxs(String.valueOf(exactTotalTxs))
@@ -508,6 +543,18 @@ public class MoralisService {
                     .recentInteractions(interactions)
                     .signalFlags(flags)
                     .build();
+                    
+            try {
+                apiCacheRepository.save(ApiCache.builder()
+                        .cacheKey(cacheKey)
+                        .jsonResponse(objectMapper.writeValueAsString(dtoResult))
+                        .updatedAt(Instant.now())
+                        .build());
+            } catch (Exception e) {
+                log.warn("Failed to save cache for {}", cacheKey, e);
+            }
+
+            return dtoResult;
         } catch (Exception e) {
             log.error("Failed to fetch Moralis details: {}", e.getMessage(), e);
             return buildMockWalletDetails(cleanAddress, chain);

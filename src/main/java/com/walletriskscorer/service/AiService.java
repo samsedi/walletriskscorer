@@ -41,7 +41,7 @@ public class AiService {
 
         try {
             // Retrieve wallet context
-            WalletDetailsDto details = moralisService.getWalletDetails(walletAddress, chain);
+            WalletDetailsDto details = moralisService.getWalletDetails(walletAddress, chain, false);
             
             String context = "You are an expert Web3 security analyst. You are analyzing the wallet address: " + walletAddress + " on chain " + chain + ".\n" +
                              "Here is the local risk profile data for this wallet:\n" +
