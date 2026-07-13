@@ -2,9 +2,9 @@ spring:
   application:
     name: walletriskscorer
   datasource:
-    url: jdbc:postgresql://localhost:5433/walletcache
-    username: sedisamuel
-    password: sam182006
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/walletcache}
+    username: ${DB_USERNAME:sedisamuel}
+    password: ${DB_PASSWORD:sam182006}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -14,7 +14,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 server:
-  port: 8084
+  port: ${PORT:8084}
 
 gemini:
   api:
