@@ -13,7 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/wallet")
-@CrossOrigin(origins = "*") // Allows React app on port 3000/5173 to call this backend
+@CrossOrigin(originPatterns = "*") // Allows React app on port 3000/5173 to call this backend
 public class WalletController {
 
     private final MoralisService moralisService;

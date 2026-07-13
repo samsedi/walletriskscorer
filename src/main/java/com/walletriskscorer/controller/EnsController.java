@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ens")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*")
 public class EnsController {
 
     private final EnsService ensService;

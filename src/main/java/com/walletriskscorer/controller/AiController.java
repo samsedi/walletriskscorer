@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = "*") // Allows requests from the React frontend
+@CrossOrigin(originPatterns = "*") // Allows requests from the React frontend
 public class AiController {
 
     private final AiService aiService;
